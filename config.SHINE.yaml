@@ -1,0 +1,48 @@
+#------------------------------------------------------------------#
+# must check the direction of data_root and result_root before run #
+#------------------------------------------------------------------#
+
+#configure feature path
+# **** please must modify the data_root before first running ****
+data_root: &d_r /data/datasets/TCGA/MC3_PanCan
+fn_H: !join [*d_r, mc3_gene_pathway_msig.c2.all.hg] 
+fn_G: !join [*d_r, pathway_edge, mc3_gene_pathway_msig_G.pik]
+fn_m: !join [*d_r, tcga_cf.pik]
+fn_train: !join [*d_r, train_indices_0.2val_0.2te.csv]
+fn_val: !join [*d_r, val_indices_0.2val_0.2te.csv]
+fn_test: !join [*d_r, test_indices_0.2val_0.2te.csv]
+
+#Hypergraph
+graph_type: &g_t hypergraph
+attention_type: multiplicative
+use_subj_edge: False
+tfidf_H: False
+use_knn: False
+jk: False 
+
+#Device
+devstr: cuda
+
+#Model
+#--------------------------------------------------
+# select the dataset you use, e.g., TCGA4
+on_dataset: &o_d MC3
+#--------------------------------------------------
+
+#Result
+# configure result path
+# **** please must modify the result_root before first running ****
+result_root: &r_r !join [*d_r, pathway_edge, shine]
+
+
+
+#Train
+max_epoch: 6000
+n_hid: [400]
+lr: [0.002] 
+patience: [50] 
+gamma: [0.99] 
+drop_out: 0.5
+print_freq: 50
+weight_decay: [0.0001] 
+seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
