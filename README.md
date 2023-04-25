@@ -3,7 +3,7 @@ NeurIPS 2022 paper, SubHypergraph Inductive Neural nEtwork
 
 ![](./genome_hypergraph1.png)
 
-**Overview of SHINE:** *SHINE jointly optimizes the objectives of end-to-end subgraph classification and hypergraph nodes' similarity regularization. SHINE simultaneously learns representations for both nodes and hyperedges using strongly dual attention message passing. The learned representations are aggregated via a subgraph attention layer and used to train a multilayer perceptron for inductive subgraph inferencing. *
+**Overview of SHINE:** SHINE jointly optimizes the objectives of end-to-end subgraph classification and hypergraph nodes' similarity regularization. SHINE simultaneously learns representations for both nodes and hyperedges using strongly dual attention message passing. The learned representations are aggregated via a subgraph attention layer and used to train a multilayer perceptron for inductive subgraph inferencing.
 
 ### Citation
 ```
