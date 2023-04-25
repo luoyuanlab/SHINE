@@ -1,6 +1,8 @@
 # SHINE: SubHypergraph Inductive Neural nEtwork
 NeurIPS 2022 paper, SubHypergraph Inductive Neural nEtwork
 
+![](./genome_hypergraph1.png)
+
 ### Citation
 ```
 @inproceedings{luo2022shine,
