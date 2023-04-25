@@ -9,12 +9,11 @@ import pprint as pp
 import pandas as pd
 import utils.hg_ops as hgo
 import pickle as pkl
-from models import SHyGNN
 from config import get_config
 import getopt
 
 if len(sys.argv) < 2:
-    sys.exit("Use: python precompute_G.py -c config/mc3g/c2cp/subj_edge/config.mc3g.c2cp.subj_edge.shygnn200.yaml")
+    sys.exit("Use: python precompute_G.py -c config.SHINE.yaml")
 
 
 opts, extraparams = getopt.getopt(sys.argv[1:], 's:c:',
