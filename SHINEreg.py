@@ -1,6 +1,6 @@
 import math
 from torch import nn
-from models import HGAT_sparse, HGNN_fc, weighted_sum, masked_sum, HGNN_sg_attn
+from layers import HGAT_sparse, HGNN_fc, weighted_sum, masked_sum, HGNN_sg_attn
 import utils.hg_ops as hgo
 import torch.nn.functional as F
 import torch
