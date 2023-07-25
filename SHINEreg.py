@@ -43,11 +43,8 @@ class SHINEreg(nn.Module):
         self.hgc1 = HGAT_sparse(in_ch_n, n_hid, dropout=dropout, alpha=0.2, transfer = True, bias = True, concat=False) 
         self.hgc2 = HGAT_sparse(n_hid, n_hid, dropout=dropout, alpha=0.2, transfer = True, bias = True, concat=False) 
 
-        
-        
-        
         self.sga_dropout = nn.Dropout(dropout)
-        self.jk = jk 
+        self.jk = jk # jumping knowledge
         if self.jk:
             sg_hid = n_hid *2
         else:
@@ -69,59 +66,33 @@ class SHINEreg(nn.Module):
         self.a = nn.Parameter(torch.zeros(size=(n_hid, 1)))   
         self.a2 = nn.Parameter(torch.zeros(size=(n_hid, 1)))  
         
-        
         stdv = 1. / math.sqrt(n_hid)
         self.a.data.uniform_(-stdv, stdv)
         self.a2.data.uniform_(-stdv, stdv)        
 
     def forward(self, x, xe, sgs, cf=None): 
-        
         x1, xe = self.hgc1(x, xe, self.pair, self.a) 
-        
-        
         x, xe = self.hgc2(x1, xe, self.pair, self.a2) 
         
         if self.jk:
             x = torch.cat((x, x1), 1) 
 
-        
-        
-        
         x2 = x / torch.norm(x, p=2, dim=1, keepdim=True)
         xxt = torch.mm(x2, x2.T) 
+        node_loss = ( (2 -2*xxt)*self.G ).sum() / self.G.shape[0]
         
-        
-        
-        node_loss = ( (2 -2*xxt)*self.G ).sum() 
-        
-        
-        
-        
-        
+        # attention layer to calcualte subgraph representation
         xsg = self.sga(x, sgs)
-        
         xsg = self.sga_dropout(xsg)
         
-        
-        
-        
         if cf is None:
-            x = F.relu(self.fc(xsg))
+            x = F.elu(self.fc(xsg))
         else:
-            x = F.relu(self.fc(torch.cat([xsg, cf], 1)))
+            x = F.elu(self.fc(torch.cat([xsg, cf], 1)))
 
         x = self.fc_dropout(x)
-        x = F.relu(self.fc2(x))
+        x = F.elu(self.fc2(x))
         x = self.fc2_dropout(x)
-        
-        
-        
-        
-
-        
-        
-        
-        
         x = self.fc3(x)
         return x, node_loss, xsg
 
@@ -129,24 +100,19 @@ class SHINEreg(nn.Module):
         self.pair = self.pair.to(device)
         self.HTa = self.HTa.to(device)
         
-        
         self.train_idx = self.train_idx.to(device)
         self.val_idx = self.val_idx.to(device)
         self.test_idx = self.test_idx.to(device)
         return super(SHINEreg, self).to(device)
     
     def fit(self, x, sgs, cf, y, cls_loss, nratio, optimizer, scheduler, num_epochs=25, print_freq=500): 
-        
-        
+        # sgs, each sg (subgraph) is a list of node ids in x
+        # cf - confounding variables for future extension
         since = time.time()
 
         best_model_wts = copy.deepcopy(self.state_dict())
         best_val_score = 0.0
 
-        
-        
-        
-        
         xe = self.HTa.mm(x) 
 
         for epoch in range(num_epochs):
@@ -154,18 +120,14 @@ class SHINEreg(nn.Module):
                 print('-' * 20)
                 print(f'Epoch {epoch}/{num_epochs - 1}')
 
-            
             for phase in ['train', 'val']:
                 if phase == 'train':
                     self.train()  
-                    
                 else:
                     self.eval()  
                     
-                    
                 idx = self.train_idx if phase == 'train' else self.val_idx
 
-                
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):
                     if cf is None:
@@ -173,30 +135,26 @@ class SHINEreg(nn.Module):
                     else:
                         cf_sel = cf.index_select(0,idx)
                     
-                    
                     outputs, node_loss, xsg = self.forward(x,
                                                       xe,
                                                       sgs.index_select(0,idx),
                                                       cf_sel)
-                    
-                    
-                    
-                    
-                    
-                    
                     clf_loss = cls_loss(outputs, y[idx]) 
-                    loss = clf_loss + nratio*node_loss
+                    loss = clf_loss / len(idx) + nratio*node_loss
                     if self.dataset == 'MC3':
                         _, preds = torch.max(outputs, 1)
                     elif self.dataset == 'disgenet':
                         preds = 1*(outputs > self.threshold)
 
-                    
+                    # backward + optimize only if in training phase
                     if phase == 'train':
                         loss.backward()
+                        torch.nn.utils.clip_grad_value_(self.parameters(), clip_value=1)
+                        grad_norm = torch.norm(torch.cat([p.grad.view(-1) for p in self.parameters()]))                        
+                        self.report['grad_norm'].append(grad_norm.detach().cpu().numpy())
                         optimizer.step()
 
-                
+                # statistics
                 y_phase_pred = preds.detach().cpu().numpy()
                 y_phase = y[idx].detach().cpu().numpy()
                 if self.dataset == 'MC3':
@@ -204,7 +162,7 @@ class SHINEreg(nn.Module):
                 elif self.dataset == 'disgenet':
                     epoch_cm = multilabel_confusion_matrix(y_phase, y_phase_pred)
 
-                epoch_loss = loss.item() / len(idx)
+                epoch_loss = loss.item() 
                 if self.metric == 'f1':
                     epoch_score = f1_score(y_phase, y_phase_pred, average='micro')
                 elif self.metric == 'acc':
@@ -230,7 +188,7 @@ class SHINEreg(nn.Module):
 
                 if epoch % print_freq == 0:
                     print(f'{phase} Loss: {epoch_loss:.4f}, clf_loss: {clf_loss.item()/len(idx):.4f}, node_loss: {node_loss.item():.4f}, {self.metric}: {epoch_score:.4f}') 
-                
+                # deep copy the model
                 if phase == 'val' and epoch_score > best_val_score:
                     best_epoch = epoch+1
                     best_train_score = train_score
@@ -279,7 +237,7 @@ class SHINEreg(nn.Module):
         time_elapsed = time.time() - since
         print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
 
-        
+        # save checkpoint
         if self.fn is not None:
             torch.save({'epoch': best_epoch,
                         'state_dict': self.state_dict(),
@@ -310,6 +268,7 @@ class SHINEreg(nn.Module):
         plt.plot(self.report['train_loss'], label='Train loss')
         plt.plot(self.report['val_loss'], label='Val loss')
         plt.legend()
+        plt.grid()
         plt.show()
         fig.savefig(f'{self.fn}_loss.pdf', bbox_inches='tight')
         plt.close()
@@ -318,16 +277,17 @@ class SHINEreg(nn.Module):
         plt.plot(self.report['train_score'], label=f'Train {self.metric}')
         plt.plot(self.report['val_score'], label=f'Val {self.metric}')
         plt.legend()
+        plt.grid()
         plt.show()
         fig.savefig(f'{self.fn}_{self.metric}.pdf', bbox_inches='tight')
         plt.close()
         
-        
+        # load best model weights
         self.load_state_dict(best_model_wts)
         return self
 
     def predict(self, x, xe, sgs, cf):   
-        self.eval()  
+        self.eval()  # set to evaluate mode
 
         outputs, node_loss, xsg = self.forward(x, xe, sgs, cf)
         if self.dataset == 'MC3':

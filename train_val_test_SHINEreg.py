@@ -10,7 +10,7 @@ import pprint as pp
 import pandas as pd
 import utils.hg_ops as hgo
 import pickle as pkl
-from models import SHINEreg
+from SHINEreg import SHINEreg
 from config import get_config
 from sklearn.preprocessing import StandardScaler
 import getopt
@@ -118,7 +118,7 @@ time_elapsed = time.time() - since
 print(f'Constructing H complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
 
     
-nfts = np.identity(H.shape[0]) 
+nfts = np.transpose(np.array(m)[train_idx]) # np.identity(H.shape[0]) 
 efts = np.identity(H.shape[1]) 
 device = torch.device(devstr)
 

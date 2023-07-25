@@ -29,7 +29,6 @@ def weighted_sum(matrix: torch.Tensor, attention: torch.Tensor) -> torch.Tensor:
     `(batch_size, num_documents, num_queries, embedding_dim)` respectively.
     """
     
-    
     if attention.dim() == 2 and matrix.dim() == 3:
         return attention.unsqueeze(1).bmm(matrix).squeeze(1)
     if attention.dim() == 3 and matrix.dim() == 3:
@@ -108,7 +107,6 @@ class HGNN_fc(nn.Module):
         return self.fc(x)
 
 class HGNN_sg_attn_simple(nn.Module):
-    
     def __init__(self, edim, ddim, atype='additive'):
         super(HGNN_sg_attn, self).__init__()
         if atype == 'additive':
@@ -123,16 +121,10 @@ class HGNN_sg_attn_simple(nn.Module):
         xsize = list(x.size())
         bsize = sgs.shape[0]
         b_attn = torch.matmul(sgs, x)
-        
-        
-        
-        
         y = self.attention(b_attn, x)
-        
         return y
 
 class HGNN_sg_attn_Allen(nn.Module):
-    
     def __init__(self, vdim, mdim, atype='additive'):
         super(HGNN_sg_attn, self).__init__()
         if atype == 'additive':
@@ -152,7 +144,6 @@ class HGNN_sg_attn_Allen(nn.Module):
         return x
     
 class HGNN_sg_attn(nn.Module):
-    
     def __init__(self, vdim, mdim, atype='additive'):
         super(HGNN_sg_attn, self).__init__()
         self.attn_vector = torch.nn.Parameter(torch.zeros((vdim,1), dtype=torch.float), requires_grad=True)   
@@ -171,7 +162,6 @@ class HGNN_sg_attn(nn.Module):
 
 
 class HGNN_sg_attn_multiplicative(nn.Module):
-    
     def __init__(self, vdim, mdim, atype='additive'):
         super(HGNN_sg_attn, self).__init__()
         self.W = nn.Parameter(torch.FloatTensor(mdim, vdim), requires_grad=True)
@@ -215,7 +205,6 @@ class HGAT_sparse(nn.Module):
         self.out_ch = out_ch
         self.alpha = alpha
         self.concat = concat
-        
         self.transfer = transfer
 
         if self.transfer:
@@ -223,51 +212,30 @@ class HGAT_sparse(nn.Module):
         else:
             self.register_parameter('wt', None)
 
-        
-        
-        
-
         if bias:
             self.bias = Parameter(torch.Tensor(1, self.out_ch))
         else:
             self.register_parameter('bias', None)
-
-        
-        
-        
-        
         
         self.coarsen = coarsen
-
         self.reset_parameters()
 
+        
     def reset_parameters(self): 
         stdv = 1. / math.sqrt(self.out_ch)
         if self.wt is not None:
             self.wt.data.uniform_(-stdv, stdv)
-
-        
         
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
-
-        
-        
-        
         
 
     def reset_parameters_xavier(self): 
         if self.wt is not None:
             nn.init.xavier_uniform_(self.wt)
 
-        
-        
-        
         if self.bias is not None:
             nn.init.xavier_uniform_(self.bias) 
-
-        
-        
         
 
     def std_scale(self, x):
@@ -277,23 +245,16 @@ class HGAT_sparse(nn.Module):
         return x
 
     def forward(self, x, xe, pair, a, val=None, e_degs=None, n_degs=None): 
-        
-        
         if self.transfer:
             x = x.mm(self.wt) 
             xe = xe.mm(self.wt) 
             
             if self.bias is not None:
-                
                 x = x + self.bias
                 xe = xe + self.bias
 
-        
-        
-
         n_edge = xe.shape[0] 
         n_node = x.shape[0] 
-        
         
         if val is None:
             pair_h = xe[ pair[0] ] * x[ pair[1] ] 
@@ -306,36 +267,18 @@ class HGAT_sparse(nn.Module):
             pair_h /= n_degs[ pair[1] ].sqrt().unsqueeze(-1) 
         pair_e = torch.mm(pair_h, a).squeeze() 
         
+        pair_e = self.e_dropout(pair_e) # direct dropout is stable (no nan)
+        base0 = -1e10
+        pair_e[pair_e==0] = base0
         
-        
+        e = base0*torch.ones(n_edge, n_node, device=pair.device)
+        e[pair[0], pair[1]] = pair_e
 
-        
-        
 
-        e = torch.zeros(n_edge, n_node, device=pair.device)
-        e[pair[0], pair[1]] = torch.exp(pair_e)        
-        e = torch.log(1e-10 + self.e_dropout(e))
-        
-
-        
         attention_edge = F.softmax(e, dim=1) 
 
         xe_out = torch.mm(attention_edge, x) 
         
-        
-
-        
-        
-        
-        
-        
-
-
-        
-        
-        
-        
-
         attention_node = F.softmax(e.transpose(0,1), dim=1)
 
         x = torch.mm(attention_node, xe) 
@@ -345,8 +288,8 @@ class HGAT_sparse(nn.Module):
             x = F.elu(x)
             xe_out = F.elu(xe_out)
         else:
-            x = F.relu(x)
-            xe_out = F.relu(xe_out)
+            x = F.elu(x)
+            xe_out = F.elu(xe_out)
 
         
         if self.coarsen:

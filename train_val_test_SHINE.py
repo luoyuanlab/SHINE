@@ -10,7 +10,7 @@ import pprint as pp
 import pandas as pd
 import utils.hg_ops as hgo
 import pickle as pkl
-from models import SHINE
+from SHINE qimport SHINE
 from config import get_config
 import getopt
 

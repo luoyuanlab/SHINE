@@ -73,16 +73,11 @@ class SHINE(nn.Module):
         self.a2.data.uniform_(-stdv, stdv)
 
     def forward(self, x, xe, sgs, cf=None): 
-        
         x1, xe = self.hgc1(x, xe, self.pair, self.a) 
-        
-        
         x, xe = self.hgc2(x1, xe, self.pair, self.a2) 
         
         if self.jk:
             x = torch.cat((x, x1), 1) 
-
-        
         
         xsg = self.sga(x, sgs)
         xsg = self.sga_dropout(xsg)
