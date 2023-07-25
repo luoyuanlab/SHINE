@@ -18,7 +18,8 @@ attention_type: multiplicative
 use_subj_edge: False
 tfidf_H: False
 use_knn: False
-jk: False 
+jk: True 
+nratio: 1
 
 #Device
 devstr: cuda
@@ -38,11 +39,11 @@ result_root: &r_r !join [*d_r, pathway_edge, shine]
 
 #Train
 max_epoch: 6000
-n_hid: [400]
-lr: [0.002] 
-patience: [50] 
+n_hid: [200]
+lr: [0.001] 
+patience: [100] 
 gamma: [0.99] 
 drop_out: 0.5
 print_freq: 50
-weight_decay: [0.0001] 
+weight_decay: [0.0005] 
 seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
